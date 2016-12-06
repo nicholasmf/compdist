@@ -1,0 +1,342 @@
+<html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <!--Load the AJAX API-->
+        <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+        <link rel="stylesheet" href="/css/graphs.css" type="text/css" />
+        <link rel="stylesheet" href="/css/font-awesome.min.css" type="text/css">
+        <script type="text/javascript">
+            var rows;
+            var category = "arroz", type = "r";
+            var period = 0;
+            var op;
+            var data, no_rating;
+            // Lista das categorias
+            categories = ["Arroz", "Arroz Integral",
+                "Feijão", "Salada", "Prato Principal", "Opção Vegetariana", "Guarnição",
+                "Sobremesa", "Suco"];
+            // Mapa das categorias de alimentos
+            var cat_map = [];
+            cat_map["Arroz"] = "arroz";
+            cat_map["Arroz Integral"] = "arroz_integral";
+            cat_map["Feijão"] = "feijao";
+            cat_map["Salada"] = "salada";
+            cat_map["Prato Principal"] = "prato";
+            cat_map["Opção Vegetariana"] = "vegetariana";
+            cat_map["Guarnição"] = "guarnicao";
+            cat_map["Sobremesa"] = "sobremesa";
+            cat_map["Suco"] = "suco";
+            // Mapa dos votos
+            var map = [];
+            map["1"] = "Muito Ruim";
+            map["2"] = "Ruim";
+            map["3"] = "Razoável";
+            map["4"] = "Bom";
+            map["5"] = "Muito Bom";
+            // Mapa dos comentarios
+            var comments = [
+                ["Gosto Ruim", "Temperatura Ruim", "Não gosto desse alimento"],
+                ["Sem Gosto", "Temperatura Razoável", "Gosto pouco deste alimento"],
+                ["Saborosa", "Temperatura Ideal", "Gosto muito desse alimento"]
+            ];
+
+            // Callback that creates and populates a data table,
+            // instantiates the pie chart, passes in the data and
+            // draws it.
+            function drawChart() {
+                no_rating = true;
+                var div = document.getElementById("chart_div");
+                div.innerHTML = "";
+                document.getElementById("table_div").innerHTML = "";
+                var back_btn = document.getElementById("back_btn");
+
+                // Inicializa linhas da tabela como 0
+                var values = [];
+                // Se categoria selectionada
+                if (type == "r") {
+                    back_btn.style.display = "none";
+                    for (var i = 0; i < map.length - 1; i++) {
+                        values[i] = [map[i + 1], 0];
+                    }
+
+                    var score_str = "r_" + category;
+                    // Get data from rows
+                    for (var i = 0; i < rows.length; i++) {
+                        if (rows[i][score_str] != null) {
+                            var now = new Date();
+                            var difftime = Math.floor(new Date(now.getFullYear(), now.getMonth(), now.getDate()) - new Date(rows[i].horario)) / 1000 / 60 / 60 / 24;
+                            console.log(new Date(rows[i].horario) + " " + difftime);
+                            if (!period || (difftime < period)) {
+                                var rating = Math.ceil(rows[i][score_str]) - 1;
+                                if (rating > -1) {
+                                    values[rating][1]++;
+                                    no_rating = false;
+                                }
+                            }
+                        }
+                    }
+                }
+                // Se comentarios selecionado
+                else if (type == "c") {
+                    back_btn.style.display = "inline";
+                    var opt = op < 2 ? 0 : op < 3 ? 1 : 2
+                    for (var i = 0; i < comments[opt].length; i++) {
+                        values[i] = [comments[opt][i], 0];
+                    }
+
+                    // Get data from rows
+                    var score_str = "r_" + category;
+                    var comment_str = "c_" + category;
+                    for (var i = 0; i < rows.length; i++) {
+                        if (rows[i][score_str] != null && rows[i][comment_str] != null) {
+                            var now = new Date();
+                            var difftime = Math.floor(new Date(now.getFullYear(), now.getMonth(), now.getDate()) - new Date(rows[i].horario)) / 1000 / 60 / 60 / 24;
+                            if (!period || (difftime < period)) {
+                                //var this_op = rows[i][str] < 2 ? 0 : rows[i][str] < 3 ? 1 : 2;
+                                var this_op = Math.ceil(rows[i][score_str]) - 1;
+                                if (this_op == op) {
+                                    var comment = rows[i][comment_str];
+                                    if (comment > 0) {
+                                        if (comment & 1) values[0][1]++;
+                                        if (comment & 2) values[1][1]++;
+                                        if (comment & 4) values[2][1]++;
+                                        no_rating = false;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                // Se historico selecionado
+                else if (type == "history") {
+                    back_btn.style.display = "none";
+                    // Inicializa vetor de dados
+                    values[0] = ["score"];
+                    for (var i = 1; i < map.length; i++) {
+                        values[0].push(map[i]);
+                    }
+                    var month = new Date().getMonth();
+                    var year = new Date().getFullYear();
+                    for (var i = 1; i <= 12; i++) {
+                        var str = (month + i) % 12 + 1 + "/" + ((year - 1) + Math.floor((month + i) / 12));
+                        values[i] = [str , 0, 0, 0, 0, 0, ''];
+                    }
+                    values[0].push({ role: "annotation" });
+
+                    var score_str = "r_" + category;
+                    // Get data from rows
+                    for (var i = 0; i < rows.length; i++) {
+                        if (rows[i][score_str] != null) {
+                            var now = new Date();
+                            var difftime = Math.floor(new Date(now.getFullYear(), now.getMonth(), now.getDate()) - new Date(rows[i].horario)) / 1000 / 60 / 60 / 24;
+                            if (!period || (difftime < period)) {
+                                var rating = Math.ceil(rows[i][score_str]) - 1;
+                                if (rating > -1) {
+                                    var date = new Date(rows[i].horario);
+                                    var now = new Date();
+                                    var index = (date.getMonth() - now.getMonth() + 11) % 12 + 1;
+                                    values[index][rating + 1]++;
+                                    no_rating = false;
+                                }
+                            }
+                        }
+                    }
+                }
+
+
+                // Instantiate and draw our chart, passing in some options.
+                if (!no_rating) {
+                    if (type == "history") {
+                        // Create the data table.
+                        data = new google.visualization.arrayToDataTable(values);
+
+                        // Set chart options
+                        var options = {
+                            'title': document.getElementById("category").value,
+                            'height': 500,
+                            'isStacked': 'percent'
+                        };
+
+                        var chart = new google.visualization.ColumnChart(document.getElementById('chart_div'));
+                        chart.draw(data, options);
+                    }
+                    else {
+                        // Create the data table.
+                        data = new google.visualization.DataTable();
+                        data.addColumn('string', 'Qualidade');
+                        data.addColumn('number', 'Votos');
+                        data.addRows(values);
+
+                        // Set chart options
+                        var options = {
+                            'title': document.getElementById("category").value,
+                            'height': 500
+                        };
+
+                        // Chart
+                        var chart = new google.visualization.PieChart(document.getElementById('chart_div'));
+                        chart.draw(data, options);
+
+                        // Table
+                        var table = new google.visualization.Table(document.getElementById("table_div"));
+                        table.draw(data, { 'width': 800 });
+
+                        // Set event handler
+                        if (type == "r") {
+                            google.visualization.events.addListener(chart, 'select', selectHandler);
+                            google.visualization.events.addListener(table, 'select', selectHandler);
+                        }
+
+                        // Handle select event from chart
+                        function selectHandler(e) {
+                            if (chart.getSelection()[0]) {
+                                var selection = chart.getSelection()[0].row;
+                            }
+                            else if (table.getSelection()[0]) {
+                                var selection = table.getSelection()[0].row;
+                            }
+                            //op = selection < 2 ? 0 : selection < 3 ? 1 : 2;
+                            op = selection;
+                            type = "c";
+                            //alert('The user selected ' + chart.getSelection()[0].row);
+                            drawChart();
+                        }
+                    }
+                }
+                // Se nao ha dados encontrados
+                else {
+                    if (type == "r")
+                        div.innerHTML = "<h1>Sem opinião sobre esta categoria</h1>";
+                    else if (type == "c")
+                        div.innerHTML = "<h1>Sem comentários sobre este item</h1>";
+                    else if(type == "history")
+                        div.innerHTML = "<h1>Sem opinião sobre esta categoria</h1>";
+                }
+
+                // Tabs laterais
+                var selected_cat = document.getElementById("category").value;
+                for (var i = 0; i < categories.length; i++) {
+                    if (selected_cat === categories[i]) selected_cat = i;
+                }
+                if (!isNaN(selected_cat)) {
+                    var next_div = document.getElementById("next_div");
+                    var prev_div = document.getElementById("prev_div");
+
+                    next_div.firstElementChild.textContent = selected_cat == categories.length - 1 ? categories[0] : categories[selected_cat + 1];
+                    prev_div.firstElementChild.textContent = selected_cat == 0 ? categories[categories.length - 1] : categories[selected_cat - 1];
+                }
+            };
+
+            // Recebe offset:   0  caso select for alterado
+            //                  1  caso proximo for selecionado
+            //                  -1 caso anterior for selecionado
+            var setCategory = function (offset) {
+                var select = document.getElementById("category");
+                var per = document.getElementById("period");
+                var n = select.value;
+
+                for (var i = 0; i < categories.length; i++) {
+                    if (n === categories[i]) n = i;
+                }
+
+                if (n == 0 && offset == -1) n = categories.length - 1;
+                else if (n == categories.length - 1 && offset == 1) n = 0;
+                else n += offset;
+
+                if (type == "c") {
+                    type = "r";
+                }
+                category = cat_map[categories[n]];
+                select.value = categories[n];
+
+                //per.value = 0;
+
+                drawChart();
+            };
+
+            var back = function back() {
+                type = "r";
+
+                drawChart();
+            }
+
+            var SetPeriod = function () {
+                var per = document.getElementById("period").value;
+                var date = new Date();
+                if (per == 0) period = 0;
+                else if (per == 1) period = 7;
+                else if (per == 2) period = 30;
+                else if (per == 3) period = Math.floor((date - new Date(date.getFullYear(), date.getMonth())) / 1000 / 60 / 60 / 24);
+                else if (per == 4) {
+                    period = 365;
+                    type = "history";
+                }
+
+                if (per < 4 && type == "history") type = "r";
+
+                drawChart();
+            }
+
+            var getData = function () {
+                var xhttp = new XMLHttpRequest();
+                xhttp.onreadystatechange = function () {
+                    if (this.readyState == 4 && this.status == 200) {
+                        rows = JSON.parse(this.responseText);
+
+                        // Load the Visualization API and the corechart package.
+                        google.charts.load('current', { 'packages': ['corechart', 'table', 'bar'] });
+
+                        // Set a callback to run when the Google Visualization API is loaded.
+                        google.charts.setOnLoadCallback(drawChart);
+
+                    }
+                };
+                xhttp.open("POST", "http://hsdh.dlinkddns.com:1337/graphs", true);
+                xhttp.send();
+
+                // Populate select category element
+                var cat = document.getElementById("category");
+                categories.map(function(data, index) {
+                    var option = document.createElement("option");
+                    option.textContent = data;
+                    cat.appendChild(option);
+                });
+            };
+            window.onload = getData;
+            // Redimensionar grafico ao redimensionar janela
+            window.onresize = drawChart;
+        </script>
+  </head>
+
+    <body>
+        <div id="main_div">
+            <select id="category" onchange="setCategory(0)">
+            </select>
+            <div id="filter_div">
+                <label id="filter_label">Selecionar intervalo</label>
+                <select id="period" onchange="SetPeriod()">
+                    <option value="0">Nenhum</option>
+                    <option value="1">Ultimos 7 dias</option>
+                    <option value="2">Ultimos 30 dias</option>
+                    <option value="3">Neste mes</option>
+                    <option value="4">Historico</option>
+                </select>
+            </div>
+            <br /><br />
+            <input type="button" value="Voltar" id="back_btn" onclick="back()" />
+            <br /><br />
+            <div id="table_div"></div>
+            <div id="chart_div"></div>
+        </div>
+        <div id="next_div" onclick="setCategory(1)">
+            <div></div>
+            <i class="fa fa-chevron-right fa-4x" aria-hidden="true"></i>
+            <i class="fa fa-chevron-right fa-4x" aria-hidden="true"></i>
+        </div>
+        <div id="prev_div" onclick="setCategory(-1)">
+            <div></div>
+            <i class="fa fa-chevron-left fa-4x" aria-hidden="true"></i>
+            <i class="fa fa-chevron-left fa-4x" aria-hidden="true"></i>
+        </div>
+    </body>
+</html>
